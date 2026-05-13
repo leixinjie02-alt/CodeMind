@@ -1,0 +1,70 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "()",
+      "start_line": 1,
+      "end_line": 3,
+      "file_path": "/tmp/opencode/codemind/test_project/main.py",
+      "id": "main"
+    },
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "()",
+      "start_line": 5,
+      "end_line": 6,
+      "file_path": "/tmp/opencode/codemind/test_project/main.py",
+      "id": "helper"
+    },
+    {
+      "type": "function",
+      "external": true,
+      "id": "print"
+    },
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "(data)",
+      "start_line": 1,
+      "end_line": 2,
+      "file_path": "/tmp/opencode/codemind/test_project/utils.py",
+      "id": "process_data"
+    },
+    {
+      "type": "function",
+      "external": true,
+      "id": "strip"
+    },
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "()",
+      "start_line": 3,
+      "end_line": 3,
+      "file_path": "/tmp/opencode/codemind/test_project/utils.py",
+      "id": "new_func"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "calls",
+      "source": "main",
+      "target": "print"
+    },
+    {
+      "relation": "calls",
+      "source": "main",
+      "target": "helper"
+    },
+    {
+      "relation": "calls",
+      "source": "process_data",
+      "target": "strip"
+    }
+  ]
+}

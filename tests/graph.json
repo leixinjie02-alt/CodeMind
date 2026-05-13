@@ -1,0 +1,71 @@
+{
+  "directed": true,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "(self, x)",
+      "start_line": 7,
+      "end_line": 9,
+      "id": "method_a"
+    },
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "(self)",
+      "start_line": 11,
+      "end_line": 12,
+      "id": "helper"
+    },
+    {
+      "type": "function",
+      "docstring": "",
+      "params": "()",
+      "start_line": 14,
+      "end_line": 16,
+      "id": "top_level_func"
+    },
+    {
+      "type": "class",
+      "id": "Parent"
+    },
+    {
+      "type": "class",
+      "id": "Child"
+    },
+    {
+      "type": "function",
+      "external": true,
+      "id": "print"
+    }
+  ],
+  "edges": [
+    {
+      "relation": "calls",
+      "source": "method_a",
+      "target": "print"
+    },
+    {
+      "relation": "calls",
+      "source": "method_a",
+      "target": "helper"
+    },
+    {
+      "relation": "calls",
+      "source": "top_level_func",
+      "target": "Child"
+    },
+    {
+      "relation": "calls",
+      "source": "top_level_func",
+      "target": "method_a"
+    },
+    {
+      "relation": "inherits",
+      "source": "Child",
+      "target": "Parent"
+    }
+  ]
+}
