@@ -36,14 +36,14 @@ Maintain focus on providing technical, accurate answers based on the codebase.
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         )
-        self.model = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 
     def _call_tool(self, action: str, action_input: str) -> str:
         logging.info(f"Agent Action: {action}({action_input})")
         try:
             if action == "query_graph":
                 # Expecting input like 'who_calls,func_name'
-                parts = [p.strip() for p in action_input.split(",")]
+                parts = [p.strip().strip("`'\" ") for p in action_input.split(",")]
                 if len(parts) != 2: return "Error: query_graph requires 'action,name'"
                 act, name = parts
                 if act == "who_calls":
@@ -79,13 +79,22 @@ Maintain focus on providing technical, accurate answers based on the codebase.
         ]
         
         for _ in range(max_iterations):
+            kwargs = {}
+            effort = os.getenv("OPENAI_REASONING_EFFORT")  # e.g. "none" for gpt-6-luna
+            if effort:
+                kwargs["reasoning_effort"] = effort
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                stop=["Observation:"]
+                **kwargs,
             )
-            
-            content = response.choices[0].message.content
+
+            content = response.choices[0].message.content or ""
+            # Newer reasoning models don't support the `stop` parameter, so we cut here
+            # ourselves: anything after "Observation:" was invented by the model, not
+            # returned by a real tool call.
+            content = content.split("Observation:")[0]
+            logging.info(f"LLM said:\n{content}")
             messages.append({"role": "assistant", "content": content})
             
             if "Final Answer:" in content:
