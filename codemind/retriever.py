@@ -29,17 +29,18 @@ class CodeRetriever:
 
         for file_path, data in parsed_data_map.items():
             relative_path = str(Path(file_path).relative_to(root_path))
+            full_path = str(Path(file_path).resolve())
             
             # Index functions
             for func in data.get("functions", []):
-                snippet_id = f"{relative_path}:{func['name']}"
+                snippet_id = f"{relative_path}:{func['name']}:{func['start_line']}"
                 # Construct a searchable string including docstring and params
                 doc = f"Function: {func['name']}\nParams: {func['params']}\nDocstring: {func['docstring']}"
                 
                 ids.append(snippet_id)
                 documents.append(doc)
                 metadatas.append({
-                    "file_path": relative_path,
+                    "file_path": full_path,
                     "name": func["name"],
                     "type": "function",
                     "start_line": func["start_line"]
@@ -51,7 +52,7 @@ class CodeRetriever:
                 ids.append(snippet_id)
                 documents.append(f"Class: {cls['name']}")
                 metadatas.append({
-                    "file_path": relative_path,
+                    "file_path": full_path,
                     "name": cls["name"],
                     "type": "class"
                 })
