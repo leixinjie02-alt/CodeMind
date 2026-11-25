@@ -1,0 +1,94 @@
+﻿id,type,question,gold,answer,n_tool_calls,score
+q01,call_chain,Trace the call path from requests.get() to the code that actually sends the HTTP request.,api.get -> api.request -> Session.request -> Session.send -> HTTPAdapter.send,"The call path in this codebase is:
+
+```text
+requests.get(url, ...)
+  → requests.api.get()                 [api.py:74–87]
+  → requests.api.request()             [api.py:24–71]
+  → Session.request()                  [sessions.py:570–653]
+  → Session.prepare_request()          [sessions.py:635]
+  → Session.send()                     [sessions.py:752–784]
+  → HTTPAdapter.send()                 [adapters.py:634–708]
+  → conn.urlopen(...)                  [adapters.py:695–708]
+```
+
+`requests.get()` delegates to the module-level `request()`, which creates a `Session` and calls its `request()` method. The session builds a `PreparedRequest`, selects an adapter, and calls `adapter.send()`.
+
+**The request is handed to the transport layer at `conn.urlopen(...)` in `HTTPAdapter.send()`**. `conn` is a urllib3 connection pool; the actual network I/O happens inside urllib3, outside this repository’s code.",12,1
+q02,callers,Which functions call Session.send?,Session.request (sessions.py:651) and SessionRedirectMixin.resolve_redirects (sessions.py:292),"The functions that call `Session.send` are `handle_401`, `send`, `resolve_redirects`, and `request`.",1,0.5
+q03,callers_ambiguous,Which functions call HTTPAdapter.send?,"Session.send (sessions.py:784, via adapter.send) and HTTPDigestAuth.handle_401 (auth.py:312, via r.connection.send)",No callers of `HTTPAdapter.send` were found in the call graph.,1,0
+q04,callees,Which functions defined in requests does Session.send call?,"Session.get_adapter, HTTPAdapter.send (via adapter.send), dispatch_hook (hooks.py), extract_cookies_to_jar (cookies.py), resolve_redirects, resolve_proxies (utils.py)","`Session.send` calls these functions defined in `requests`:
+
+- `add_headers`
+- `get_adapter`
+- `_is_prepared`
+- `build_response`
+- `get_connection_with_tls_context`
+- `request_url`
+- `resolve_redirects`
+- `resolve_proxies`
+- `extract_cookies_to_jar`
+- `dispatch_hook`
+
+The call graph also shows calls to other names, including methods, built-ins, and exceptions, which aren’t functions defined in `requests`.",2,0.5
+q05,inheritance,Which exception classes directly inherit from ConnectionError in requests?,"ProxyError, SSLError, ConnectTimeout (all in exceptions.py)","`ProxyError`, `SSLError`, and `ConnectTimeout` directly inherit from `ConnectionError` in `requests.exceptions`.",3,1
+q06,locate,Where does requests decide whether to strip the Authorization header when following a redirect?,"SessionRedirectMixin.should_strip_auth (sessions.py:154), called from rebuild_auth","The decision is in **`requests/sessions.py`**, in `SessionRedirectMixin.should_strip_auth()` (around line 154). It returns `True` when the hostname changes, or when the scheme or port changes—except for certain same-host cases, including standard-port HTTP→HTTPS redirects.
+
+That check is applied in `rebuild_auth()` (around line 324), called from `resolve_redirects()` for each redirected request. If it returns `True` and the request has an `Authorization` header, `rebuild_auth()` removes it.",2,1
+q07,negative,Which function in requests refreshes expired OAuth2 access tokens?,None. requests does not implement OAuth; the word only appears in a comment in models.py. A correct answer says it is not in this codebase instead of inventing a function.,"Requests does not include a function that refreshes expired OAuth2 access tokens. OAuth2 token refresh is typically handled by an OAuth library, such as `requests-oauthlib`. The `handle_401` function in `requests.auth` retries certain Digest-authenticated requests; it does not refresh OAuth2 tokens.",2,1
+q08,callers,Which functions call extract_cookies_to_jar?,"HTTPAdapter.build_response (adapters.py:395), HTTPDigestAuth.handle_401 (auth.py:304), SessionRedirectMixin.resolve_redirects (sessions.py:267 and 303), Session.send (sessions.py:797 and 799)","The functions that call `extract_cookies_to_jar` are `handle_401`, `send`, `resolve_redirects`, and `build_response`.",1,1
+q09,callers,Which functions call get_netrc_auth?,SessionRedirectMixin.rebuild_auth (sessions.py:330) and Session.prepare_request (sessions.py:538),`prepare_request` and `rebuild_auth` call `get_netrc_auth`.,1,1
+q10,callers,Which functions call merge_setting?,"merge_hooks (sessions.py:124), Session.prepare_request (sessions.py:547-551), Session.merge_environment_settings (sessions.py:863-866)","`merge_setting` is called by `merge_environment_settings`, `merge_hooks`, and `prepare_request`.",1,1
+q11,callees,Which functions defined in requests does Session.request call?,"Session.prepare_request (sessions.py:635), Session.merge_environment_settings (sessions.py:641), Session.send (sessions.py:651); it also creates a Request object (models.py) and calls is_prepared (imported as _is_prepared)","`Session.request` directly calls these functions:
+
+- Built-in `isinstance` and `bytes.decode` (for byte URLs)
+- `Request` to construct the request
+- `self.prepare_request`
+- `_is_prepared`
+- `self.merge_environment_settings`
+- `self.send`
+- `dict.update` on `send_kwargs`
+
+The `self.` calls are methods on the session; the others are separate functions or constructors.",4,1
+q12,callees,Which functions defined in requests does Session.prepare_request call?,"cookiejar_from_dict and merge_cookies (cookies.py), get_netrc_auth (utils.py), PreparedRequest.prepare (models.py), merge_setting and merge_hooks (sessions.py)","`Session.prepare_request` calls these functions defined in `requests`:
+
+- `cookiejar_from_dict`
+- `get_netrc_auth`
+- `merge_setting`
+- `merge_cookies`
+- `merge_hooks`
+
+It also calls `upper` and `isinstance`, which are built-ins or methods rather than functions defined in `requests`.",1,0.5
+q13,call_chain,Trace the call path from requests.post() to Session.request.,"api.post -> api.request -> Session.request (api.py:134, api.py:71)","The call path is:
+
+```text
+requests.post(url, data=..., json=..., **kwargs)
+  → requests.api.post(...)                         [api.py:117–134]
+  → requests.api.request(""post"", url, ...)         [api.py:134]
+  → create a Session in a context manager
+  → Session.request(method=""post"", url=..., ...)    [api.py:67–71]
+```
+
+`requests.api.post()` forwards the body arguments and any extra options to `requests.api.request()`. That function creates a `sessions.Session()` and calls its `request()` method, passing the method and URL. In `Session.request()` (`sessions.py:560–653`), the method is uppercased and used to construct a `Request`; the request is prepared, settings are merged, and it is sent.",8,1
+q14,call_chain,"When a response is a redirect, how does requests reach the code that decides whether to drop the Authorization header? Give the call path starting from Session.send.",Session.send -> SessionRedirectMixin.resolve_redirects (sessions.py:804) -> SessionRedirectMixin.rebuild_auth (sessions.py:273) -> SessionRedirectMixin.should_strip_auth (sessions.py:324),"The redirect path from `Session.send` is:
+
+```text
+Session.send
+  → self.resolve_redirects(r, request, **kwargs)
+    → for each redirect:
+      → copy the request and update its URL/method/headers
+      → self.rebuild_auth(prepared_request, resp)
+        → self.should_strip_auth(original_url, new_url)
+        → remove Authorization if it returns True
+      → self.send(req, ..., allow_redirects=False)
+```
+
+`resolve_redirects` calls `rebuild_auth` after preparing the redirected request. In `rebuild_auth`, the Authorization check runs only if the copied request has an `Authorization` header; if `should_strip_auth` says to strip it, that header is deleted. `should_strip_auth` compares the old and new hosts, schemes, and ports. (In `sessions.py`, see `Session.send` around lines 801–805, `resolve_redirects` around lines 186–307, and `rebuild_auth`/`should_strip_auth` around lines 154–184 and 309–332.)",6,1
+q15,inheritance,Which classes inherit from AuthBase?,"Directly: HTTPBasicAuth and HTTPDigestAuth (auth.py). Indirectly: HTTPProxyAuth, which inherits from HTTPBasicAuth.","`HTTPBasicAuth` and `HTTPDigestAuth` directly inherit from `AuthBase`. `HTTPProxyAuth` inherits from `HTTPBasicAuth`, so it is an indirect subclass of `AuthBase`.",3,1
+q16,inheritance,Which exception classes directly inherit from Timeout?,ConnectTimeout (which also inherits from ConnectionError) and ReadTimeout (exceptions.py),`ReadTimeout` and `ConnectTimeout` directly inherit from `Timeout` (though `ConnectTimeout` also inherits from `ConnectionError`).,4,1
+q17,locate,Where does requests read proxy settings from environment variables?,"utils.get_environ_proxies (utils.py:873), which first checks should_bypass_proxies; it is used by Session.merge_environment_settings and resolve_proxies",Agent timed out without a final answer.,10,0
+q18,locate,Where is the default User-Agent string built?,"utils.default_user_agent (utils.py:942), which returns 'python-requests/<version>'; it is used by default_headers","The default User-Agent is built in `requests/utils.py` in `default_user_agent()` (around line 942). It returns `f""{name}/{__version__}""`, with `""python-requests""` as the default name.
+
+`default_headers()` calls it to set the `""User-Agent""` header.",2,1
+q19,locate,"Where does requests stop following redirects after too many hops, and what is the default limit?",SessionRedirectMixin.resolve_redirects raises TooManyRedirects when len(resp.history) >= self.max_redirects (sessions.py:216); the default is DEFAULT_REDIRECT_LIMIT = 30 (models.py:104),Agent timed out without a final answer.,9,0
+q20,negative,Which function in requests opens WebSocket connections?,None. requests has no WebSocket support; the word does not appear in its source. A correct answer says it is not in this codebase instead of inventing a function.,Requests does **not** have a function for opening WebSocket connections. Its `Session.send()` function sends HTTP requests through an adapter; it isn’t a WebSocket client.,3,1

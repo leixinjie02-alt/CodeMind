@@ -1,0 +1,104 @@
+﻿id,type,question,gold,answer,n_tool_calls,score
+q01,call_chain,Trace the call path from requests.get() to the code that actually sends the HTTP request.,api.get -> api.request -> Session.request -> Session.send -> HTTPAdapter.send,"For the top-level API (`import requests; requests.get(url)`), the normal call path is:
+
+```text
+requests.get(url)
+  → requests.api.get                 [api.py:74–87]
+  → requests.api.request(""get"", ...)
+  → Session().request(...)           [api.py:67–71]
+  → Session.prepare_request(...)     [sessions.py:635]
+  → Session.send(prepared_request)   [sessions.py:651]
+  → Session.get_adapter(url)         [sessions.py:777–779]
+  → HTTPAdapter.send(...)            [sessions.py:783–784]
+  → conn.urlopen(...)                [adapters.py:695–708]
+```
+
+`requests.api.get()` delegates to the module-level `request()`, which creates a temporary `Session`. The session builds a `Request`, prepares it, and calls `Session.send()`. That selects the adapter for the URL; by default, HTTP and HTTPS URLs are mounted to `HTTPAdapter` (`sessions.py:500–503`).
+
+**The point where Requests hands off the request for transmission is `HTTPAdapter.send()` calling `conn.urlopen(...)`** (`adapters.py:695–708`). The connection is obtained and configured earlier in that method; the actual network I/O is handled by urllib3’s `urlopen()`.",12,1
+q02,callers,Which functions call Session.send?,Session.request (sessions.py:651) and SessionRedirectMixin.resolve_redirects (sessions.py:292),"The call graph reports these callers of `Session.send`: `request`, `send`, `handle_401`, and `resolve_redirects`.",1,0.5
+q03,callers_ambiguous,Which functions call HTTPAdapter.send?,"Session.send (sessions.py:784, via adapter.send) and HTTPDigestAuth.handle_401 (auth.py:312, via r.connection.send)","The call graph shows `request`, `send`, `handle_401`, and `resolve_redirects` calling `HTTPAdapter.send`.",2,0.5
+q04,callees,Which functions defined in requests does Session.send call?,"Session.get_adapter, HTTPAdapter.send (via adapter.send), dispatch_hook (hooks.py), extract_cookies_to_jar (cookies.py), resolve_redirects, resolve_proxies (utils.py)",Agent timed out without a final answer.,8,0
+q05,inheritance,Which exception classes directly inherit from ConnectionError in requests?,"ProxyError, SSLError, ConnectTimeout (all in exceptions.py)","`ProxyError`, `SSLError`, and `ConnectTimeout` directly inherit from `ConnectionError` in `requests.exceptions`.",3,1
+q06,locate,Where does requests decide whether to strip the Authorization header when following a redirect?,"SessionRedirectMixin.should_strip_auth (sessions.py:154), called from rebuild_auth","Requests decides in `SessionRedirectMixin` in **`requests/sessions.py`**:
+
+- **`should_strip_auth(old_url, new_url)`** (around line 154) determines whether the redirect warrants removing the header. It strips it for a hostname change, or—subject to exceptions—for a scheme or port change.
+- **`rebuild_auth(prepared_request, response)`** (around line 309) calls that decision during redirect processing and deletes `Authorization` if needed. It may then apply credentials from `.netrc` for the new URL.
+
+The redirect flow calls `rebuild_auth` from `resolve_redirects` (around line 273).",2,1
+q07,negative,Which function in requests refreshes expired OAuth2 access tokens?,None. requests does not implement OAuth; the word only appears in a comment in models.py. A correct answer says it is not in this codebase instead of inventing a function.,"`requests` does not have a function that refreshes expired OAuth2 access tokens. Its built-in `handle_401` function handles HTTP Digest authentication, not OAuth2 token refresh. You’ll need an OAuth2 library or your own refresh logic.",2,1
+q08,callers,Which functions call extract_cookies_to_jar?,"HTTPAdapter.build_response (adapters.py:395), HTTPDigestAuth.handle_401 (auth.py:304), SessionRedirectMixin.resolve_redirects (sessions.py:267 and 303), Session.send (sessions.py:797 and 799)","`extract_cookies_to_jar` is called by:
+
+- `build_response`
+- `send`
+- `handle_401`
+- `resolve_redirects`",1,1
+q09,callers,Which functions call get_netrc_auth?,SessionRedirectMixin.rebuild_auth (sessions.py:330) and Session.prepare_request (sessions.py:538),`rebuild_auth` and `prepare_request` call `get_netrc_auth`.,1,1
+q10,callers,Which functions call merge_setting?,"merge_hooks (sessions.py:124), Session.prepare_request (sessions.py:547-551), Session.merge_environment_settings (sessions.py:863-866)","`merge_setting` is called by:
+
+- `merge_environment_settings`
+- `prepare_request`
+- `merge_hooks`",1,1
+q11,callees,Which functions defined in requests does Session.request call?,"Session.prepare_request (sessions.py:635), Session.merge_environment_settings (sessions.py:641), Session.send (sessions.py:651); it also creates a Request object (models.py) and calls is_prepared (imported as _is_prepared)","`Session.request` calls these functions defined in `requests`:
+
+- `Session`
+- `Request`
+- `prepare_request`
+- `merge_environment_settings`
+- `send`
+- `_is_prepared`
+
+The call graph also shows built-ins or methods such as `isinstance`, `update`, `upper`, and `decode`; I’ve omitted those from the list.",2,1
+q12,callees,Which functions defined in requests does Session.prepare_request call?,"cookiejar_from_dict and merge_cookies (cookies.py), get_netrc_auth (utils.py), PreparedRequest.prepare (models.py), merge_setting and merge_hooks (sessions.py)","`Session.prepare_request` calls these functions defined in `requests`:
+
+- `cookiejar_from_dict`
+- `merge_cookies`
+- `get_netrc_auth`
+- `merge_hooks`
+- `merge_setting`
+
+The call graph also shows calls to methods, constructors, and built-ins such as `PreparedRequest`, `prepare`, `upper`, `cast`, and `isinstance`.",1,0.5
+q13,call_chain,Trace the call path from requests.post() to Session.request.,"api.post -> api.request -> Session.request (api.py:134, api.py:71)","The call path for the top-level `requests.post(url, ...)` is:
+
+```text
+requests.post(...)
+  → requests.api.post(...)
+  → requests.api.request(""post"", ...)
+  → Session().request(method=""post"", ...)
+```
+
+- `requests.__init__` re-exports `post` from `requests.api` (line 171).
+- `requests.api.post` calls `request(""post"", url, data=data, json=json, **kwargs)` (line 134).
+- `requests.api.request` creates a `sessions.Session()` and calls `session.request(method=method, url=url, **kwargs)` (lines 70–71).
+
+So the top-level `requests.post()` reaches `Session.request()` through the API-level `request()` wrapper. This differs from calling `session.post()` on an existing session, which calls `self.request(""POST"", ...)` directly (line 712).",6,1
+q14,call_chain,"When a response is a redirect, how does requests reach the code that decides whether to drop the Authorization header? Give the call path starting from Session.send.",Session.send -> SessionRedirectMixin.resolve_redirects (sessions.py:804) -> SessionRedirectMixin.rebuild_auth (sessions.py:273) -> SessionRedirectMixin.should_strip_auth (sessions.py:324),"The redirect path from `Session.send` is:
+
+```text
+Session.send
+  → adapter.send                         # gets the initial response
+  → resolve_redirects                    # called when allow_redirects=True
+      → get_redirect_target              # checks whether the response is a redirect
+      → ... copy and update the request for the redirect ...
+      → rebuild_auth
+          → should_strip_auth            # decides whether Authorization should be removed
+          → [if it should] delete headers[""Authorization""]
+      → Session.send                     # sends the redirected request
+```
+
+In `send`, the redirect handling starts at `sessions.py:801–805`. Inside `resolve_redirects`, `rebuild_auth` is called at line 273 after the redirected URL has been set. `rebuild_auth` calls `should_strip_auth` only if the copied request has an `Authorization` header (`sessions.py:324`); if the check returns true, it deletes that header. The redirect is then sent by another `Session.send` call.",8,1
+q15,inheritance,Which classes inherit from AuthBase?,"Directly: HTTPBasicAuth and HTTPDigestAuth (auth.py). Indirectly: HTTPProxyAuth, which inherits from HTTPBasicAuth.","The classes that directly inherit from `AuthBase` are **`HTTPBasicAuth`** and **`HTTPDigestAuth`**. `HTTPProxyAuth` inherits from `HTTPBasicAuth`, so it inherits from `AuthBase` indirectly.",3,1
+q16,inheritance,Which exception classes directly inherit from Timeout?,ConnectTimeout (which also inherits from ConnectionError) and ReadTimeout (exceptions.py),`ConnectTimeout` and `ReadTimeout` directly inherit from `Timeout`. `ConnectTimeout` also inherits from `ConnectionError`.,4,1
+q17,locate,Where does requests read proxy settings from environment variables?,"utils.get_environ_proxies (utils.py:873), which first checks should_bypass_proxies; it is used by Session.merge_environment_settings and resolve_proxies","Proxy environment handling is mainly in **`src/requests/utils.py`**:
+
+- **`get_environ_proxies()`** at line 873 returns proxies from Python’s `urllib.request.getproxies()`, unless the URL should bypass proxies.
+- **`should_bypass_proxies()`** at line 810 checks `no_proxy`/`NO_PROXY` to decide whether to bypass them. The code prefers lowercase environment names over uppercase.
+
+The usual request path picks those values up in **`src/requests/sessions.py`**, in **`Session.merge_environment_settings()`** at line 831. When `self.trust_env` is true, it calls `get_environ_proxies()` and adds the results to the request’s proxy settings. Redirects re-evaluate proxy settings via `rebuild_proxies()`.
+
+You can disable this environment-based behavior with `session.trust_env = False`.",10,1
+q18,locate,Where is the default User-Agent string built?,"utils.default_user_agent (utils.py:942), which returns 'python-requests/<version>'; it is used by default_headers","The default is built in `src/requests/utils.py` by `default_user_agent()` at line 942. It returns `f""{name}/{__version__}""` (defaulting to `python-requests`), and `default_headers()` uses it to set the `User-Agent` header.",2,1
+q19,locate,"Where does requests stop following redirects after too many hops, and what is the default limit?",SessionRedirectMixin.resolve_redirects raises TooManyRedirects when len(resp.history) >= self.max_redirects (sessions.py:216); the default is DEFAULT_REDIRECT_LIMIT = 30 (models.py:104),"Redirects are stopped in `SessionRedirectMixin.resolve_redirects()` in `src/requests/sessions.py`. The loop checks `len(resp.history) >= self.max_redirects` and raises `TooManyRedirects` when the limit is reached (around lines 216–219).
+
+The default limit is **30**, set by `Session.__init__()` as `self.max_redirects = DEFAULT_REDIRECT_LIMIT` (around lines 484–488).",6,1
+q20,negative,Which function in requests opens WebSocket connections?,None. requests has no WebSocket support; the word does not appear in its source. A correct answer says it is not in this codebase instead of inventing a function.,"**None.** The `requests` package in this codebase does not open WebSocket connections; it handles HTTP requests. Its `Session.send()` method sends a prepared HTTP request through an adapter, but it isn’t a WebSocket opener.",4,1

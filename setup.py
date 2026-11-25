@@ -6,8 +6,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         "click",
-        "tree-sitter",
-        "tree-sitter-languages",
+        "tree-sitter==0.21.3",
+        "tree-sitter-languages==1.10.2",
         "networkx",
         "chromadb",
         "sentence-transformers",

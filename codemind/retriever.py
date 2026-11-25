@@ -35,13 +35,13 @@ class CodeRetriever:
             for func in data.get("functions", []):
                 snippet_id = f"{relative_path}:{func['name']}:{func['start_line']}"
                 # Construct a searchable string including docstring and params
-                doc = f"Function: {func['name']}\nParams: {func['params']}\nDocstring: {func['docstring']}"
+                doc = f"Function: {func.get('qualname', func['name'])}\nParams: {func['params']}\nDocstring: {func['docstring']}"
                 
                 ids.append(snippet_id)
                 documents.append(doc)
                 metadatas.append({
                     "file_path": full_path,
-                    "name": func["name"],
+                    "name": func.get("qualname", func["name"]),
                     "type": "function",
                     "start_line": func["start_line"]
                 })

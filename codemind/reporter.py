@@ -23,8 +23,11 @@ class Reporter:
         high_fan = []
         for node, data in self.graph.nodes(data=True):
             if data.get("type") == "function":
-                fan_in = self.graph.in_degree(node)
-                fan_out = self.graph.out_degree(node)
+                # Count only certain call edges; uncertain ones are guesses.
+                fan_in = sum(1 for *_, e in self.graph.in_edges(node, data=True)
+                             if e.get("relation") == "calls" and e.get("certain", True))
+                fan_out = sum(1 for *_, e in self.graph.out_edges(node, data=True)
+                              if e.get("relation") == "calls" and e.get("certain", True))
                 if fan_in > in_threshold or fan_out > out_threshold:
                     high_fan.append({
                         "name": node,
@@ -38,7 +41,7 @@ class Reporter:
         """Detect cycles at the module (file) level."""
         module_graph = nx.DiGraph()
         for u, v, data in self.graph.edges(data=True):
-            if data.get("relation") == "calls":
+            if data.get("relation") == "calls" and data.get("certain", True):
                 file_u = self.graph.nodes[u].get("file_path")
                 file_v = self.graph.nodes[v].get("file_path")
                 if file_u and file_v and file_u != file_v:
@@ -52,7 +55,7 @@ class Reporter:
     def _get_missing_docstrings(self):
         missing = []
         for node, data in self.graph.nodes(data=True):
-            if data.get("type") == "function" and not node.startswith("_"):
+            if data.get("type") == "function" and not data.get("name", node).startswith("_"):
                 if not data.get("docstring"):
                     missing.append((node, data.get("file_path", "unknown")))
         return missing

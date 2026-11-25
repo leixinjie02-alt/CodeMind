@@ -47,12 +47,13 @@ def build(path, db_path):
             if cache.is_changed(f):
                 parsed = extractor.parse_file(f)
                 all_parsed[f] = parsed
-                graph_builder.build_graph(parsed, file_path=f)
+                graph_builder.build_graph(parsed, file_path=f, root=path)
                 cache.update(f)
 
     if all_parsed:
         click.echo(f"Indexing {len(all_parsed)} updated snippets...")
         retriever.index_codebase(all_parsed, path)
+        graph_builder.resolve_calls()
         graph_builder.save_graph(graph_file)
         cache.save()
         click.echo("Build complete.")

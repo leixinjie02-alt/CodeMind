@@ -16,8 +16,11 @@ class CodeAgent:
         "You are an expert software engineer helping someone understand a codebase. "
         "You have tools to query the call graph, search code by meaning, and read source files. "
         "Always use the tools to check facts in this codebase before answering; do not answer "
-        "from memory. Names in the call graph are short function or class names, for example "
-        "'send' rather than 'Session.send'. If the tools show that something does not exist in "
+        "from memory. query_graph accepts a short name ('send'), a qualified name "
+        "('Session.send') or a full ID ('sessions.py::Session.send'); a short name may match several "
+        "functions. Its results split edges into 'certain' and 'uncertain': uncertain means static "
+        "analysis could not tell which class's method is called, so check those in the source "
+        "before relying on them. If the tools show that something does not exist in "
         "this codebase, say so plainly instead of guessing."
     )
 
@@ -37,7 +40,7 @@ class CodeAgent:
                             "enum": ["who_calls", "called_by"],
                             "description": "who_calls = callers of `name`; called_by = functions that `name` calls.",
                         },
-                        "name": {"type": "string", "description": "Short function name, e.g. 'send'."},
+                        "name": {"type": "string", "description": "e.g. 'send', 'Session.send' or 'sessions.py::Session.send'."},
                     },
                     "required": ["action", "name"],
                 },
